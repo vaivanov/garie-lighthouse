@@ -1,15 +1,15 @@
-const CronJob = require('cron').CronJob;
-const express = require('express');
-const serveIndex = require('serve-index');
-const bodyParser = require('body-parser');
+import express from 'express'
+import { CronJob } from 'cron'
+import serveIndex from 'serve-index'
+import bodyParser from 'body-parser'
 
-const collect = require('./routes/collect');
-const logger = require('./utils/logger');
-const saveReport = require('./utils/save-report');
-const config = require('../config');
-const { getData } = require('./light-house');
+import collect from './routes/collect'
+import logger from './utils/logger'
+import config from '../config.json'
+import { getData } from './light-house'
 
-const { init, saveData } = require('./influx');
+import { init, saveData } from './influx'
+import saveReport from './utils/save-report'
 
 const app = express();
 app.use(bodyParser.json());
@@ -20,62 +20,59 @@ app.use('/collect', collect);
 app.use('/reports', express.static('reports'), serveIndex('reports', { icons: true }));
 
 const getDataForAllUrls = async () => {
-    // Run lighthouse tests 1 after another.... maybe parallel one day?
-    for (const item of urls) {
-        try {
-            const { url, plugins = [] } = item;
-
-            const pluginConfig = plugins.find(({ name }) => {
-                return name === 'lighthouse';
-            });
-
-            const { report, config } = pluginConfig || {};
-
-            const { raw, filteredData } = (await getData(item.url, config)) || {};
-
-            await saveData(item.url, filteredData);
-
-            if (report) {
-                await saveReport(url, raw);
-            }
-        } catch (err) {
-            console.log(err);
-        }
-    }
-
-    logger.info('Finished processed all CRON urls');
-};
-
-const main = async () => {
-    await init();
-
+  // Run lighthouse tests 1 after another.... maybe parallel one day?
+  for (const item of urls) {
     try {
-        if (cron) {
-            return new CronJob(
-                cron,
-                async () => {
-                    getDataForAllUrls();
-                },
-                null,
-                true,
-                'Europe/London',
-                null,
-                true
-            );
-        }
-    } catch (err) {
-        console.log(err);
-    }
-};
+      const { url, plugins = [] } = item;
 
-if (process.env.ENV !== 'test') {
-    app.listen(3000, async () => {
-        console.log('Application listening on port 3000');
-        await main();
-    });
+      const pluginConfig = plugins.find(({ name }) => {
+        return name === 'lighthouse';
+      });
+
+      const { report, config } = pluginConfig || {};
+      const { raw, filteredData, html } = (await getData(item.url, config)) || {};
+
+      await saveData(item.url, filteredData);
+
+      if (report) {
+        await saveReport(item.url, html)
+      }
+
+    } catch (err) {
+      console.log(err);
+    }
+  }
+
+  logger.info('Finished processed all CRON urls');
 }
 
-module.exports = {
-    main,
-    app
-};
+export const main = async () => {
+  await init();
+
+  try {
+    if (cron) {
+      return new CronJob(
+        cron,
+        async () => {
+          getDataForAllUrls();
+        },
+        null,
+        true,
+        'Europe/London',
+        null,
+        true
+      );
+    }
+  } catch (err) {
+    console.log(err);
+  }
+}
+
+if (process.env.ENV !== 'test') {
+  app.listen(3000, async () => {
+    console.log('Application listening on port 3000');
+    await main();
+  });
+}
+
+export { app }

@@ -1,14 +1,14 @@
 {
-    "cron": "00 00 */6 * * *",
-    "urls": [
+  "cron": "00 00 */6 * * *",
+  "urls": [
+    {
+      "url": "https://www.google.com",
+      "plugins": [
         {
-            "url": "https://www.google.com",
-            "plugins": [
-                {
-                    "name": "lighthouse",
-                    "report": true
-                }
-            ]
+          "name": "lighthouse",
+          "report": true
         }
-    ]
+      ]
+    }
+  ]
 }

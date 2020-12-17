@@ -1,77 +1,69 @@
-const { launchChromeAndRunLighthouse, createReport } = require('./utils');
-const logger = require('../utils/logger');
+import fs from 'fs'
+
+import { launchChromeAndRunLighthouse } from './utils'
+import saveReport from '../utils/save-report'
+import logger from '../utils/logger'
 
 const filterResults = (data = {}) => {
-    const { categories = {}, audits = {} } = data;
+  const { categories = {}, audits = {} } = data;
 
-    const { metrics = {} } = audits;
-    const { details = {} } = metrics;
-    const { items = [] } = details;
-    const metricItems = items[0] || {};
+  const { metrics = {} } = audits;
+  const { details = {} } = metrics;
+  const { items = [] } = details;
+  const metricItems = items[0] || {};
 
-    const report = {};
+  const report = {};
 
-    for (const categoryName in categories) {
-        if (!Object.prototype.hasOwnProperty.call(categories, categoryName)) {
-            continue;
-        }
-
-        const category = categories[categoryName];
-        report[`${category.id}-score`] = Math.round(category.score * 100);
+  for (const categoryName in categories) {
+    if (!Object.prototype.hasOwnProperty.call(categories, categoryName)) {
+      continue;
     }
 
-    for (const metricItem in metricItems) {
-        if (!Object.prototype.hasOwnProperty.call(metricItems, metricItem)) {
-            continue;
-        }
+    const category = categories[categoryName];
+    report[`${category.id}-score`] = Math.round(category.score * 100);
+  }
 
-        // For now don't report on any observered metrics
-        if (metricItem.indexOf('observed') === -1) {
-            const metric = metricItems[metricItem];
-            report[metricItem] = metricItems[metricItem];
-        }
+  for (const metricItem in metricItems) {
+    if (!Object.prototype.hasOwnProperty.call(metricItems, metricItem)) {
+      continue;
     }
 
-    const auditData = ['errors-in-console', 'time-to-first-byte', 'interactive', 'redirects'];
+    // For now don't report on any observered metrics
+    if (metricItem.indexOf('observed') === -1) {
+      const metric = metricItems[metricItem];
+      report[metricItem] = metricItems[metricItem];
+    }
+  }
 
-    auditData.forEach(key => {
-        const { rawValue } = audits[key] || {};
-        if (rawValue !== undefined) {
-            report[key] = rawValue;
-        }
+  const auditData = ['errors-in-console', 'time-to-first-byte', 'interactive', 'redirects'];
+
+  auditData.forEach(key => {
+    const { rawValue } = audits[key] || {};
+    if (rawValue !== undefined) {
+      report[key] = rawValue;
+    }
+  });
+
+  return report;
+}
+
+export const getData = async (url, config = {}) => {
+  try {
+    logger.info(`Getting data for ${url}`);
+
+    const report = await launchChromeAndRunLighthouse(url, { extends: 'lighthouse:default', ...config })
+
+    const lighthouse = report || {};
+
+    logger.info(`Successfully got data for ${url}`);
+
+    return Promise.resolve({
+      raw: lighthouse.lhr,
+      filteredData: filterResults(lighthouse.lhr),
+      html: lighthouse.report,
     });
 
-    return report;
-};
-
-const fs = require('fs');
-
-module.exports = {
-    getData: async (url, config = {}) => {
-        try {
-            logger.info(`Getting data for ${url}`);
-
-            const lighthouse =
-                (await launchChromeAndRunLighthouse(url, { extends: 'lighthouse:default', ...config })) || {};
-
-            logger.info(`Successfully got data for ${url}`);
-
-            return Promise.resolve({
-                raw: lighthouse.lhr,
-                filteredData: filterResults(lighthouse.lhr)
-            });
-        } catch (err) {
-            logger.error(`Failed to get data for ${url}`, err);
-        }
-    },
-    generateReport: async (url, data) => {
-        try {
-            logger.info(`Generating report for ${url}`);
-            const report = await createReport(data);
-            return report;
-        } catch (err) {
-            logger.error(`Failed to generate report`, err);
-            return Promise.reject('Failed to generate report');
-        }
-    }
-};
+  } catch (err) {
+    logger.error(`Failed to get data for ${url}`, err);
+  }
+}

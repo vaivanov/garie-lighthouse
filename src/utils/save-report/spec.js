@@ -1,50 +1,42 @@
-const fsExtra = require('fs-extra');
-const fs = require('fs');
-const path = require('path');
-const { generateReport } = require('../../light-house');
-const saveReport = require('./');
-const mockData = require('../../../test/mock-data/lighthouse-test-data.json');
+import fsExtra from 'fs-extra'
+import fs from 'fs'
+import path from 'path'
 
-jest.mock('../../light-house', () => ({
-    generateReport: jest.fn()
-}));
+import saveReport from './'
+import mockData from '../../../test/mock-data/lighthouse-test-data.json'
+
 
 describe('save-report', () => {
 
-    beforeAll(() => {
-        fsExtra.emptyDirSync(path.join(__dirname, '../../../reports/www.save-report-test.co.uk'));
-    })
+  beforeAll(() => {
+    fsExtra.emptyDirSync(path.join(__dirname, '../../../reports/www.save-report-test.co.uk'));
+  })
 
-    afterEach(() => {
-        generateReport.mockClear();
-        fsExtra.emptyDirSync(path.join(__dirname, '../../../reports/www.save-report-test.co.uk'))
-    });
+  afterEach(() => {
+    fsExtra.emptyDirSync(path.join(__dirname, '../../../reports/www.save-report-test.co.uk'))
+  });
 
-    it('generates a light house report and save it to disk when generateReport is successful', async () => {
+  it('generates a light house report and save it to disk when generateReport is successful', async () => {
 
-        const today = new Date();
+    const today = new Date();
 
-        generateReport.mockResolvedValue(`<html></html>`);
+    await saveReport('https://www.save-report-test.co.uk', '<html></html>');
 
-        await saveReport('https://www.save-report-test.co.uk', mockData.lhr);
+    const filesInFolder = fs.readdirSync(path.join(__dirname, '../../../reports/www.save-report-test.co.uk'));
 
-        const filesInFolder = fs.readdirSync(path.join(__dirname, '../../../reports/www.save-report-test.co.uk'));
+    const fileMatch = new Date().toISOString().match(/[^T]*/);
 
-        const fileMatch = new Date().toISOString().match(/[^T]*/);
+    expect(filesInFolder).toHaveLength(1);
+    expect(filesInFolder[0].indexOf(fileMatch[0]) > -1).toEqual(true);
 
-        expect(filesInFolder).toHaveLength(1);
-        expect(filesInFolder[0].indexOf(fileMatch[0]) > -1).toEqual(true);
+  });
 
-    });
+  // it('throws an error if generating the lighthouse report fails', async () => {
 
-    it('throws an error if generating the lighthouse report fails', async () => {
+  //   const today = new Date();
 
-        const today = new Date();
+  //   return await expect(saveReport('https://www.save-report-test.co.uk', undefined)).rejects.toMatch('Failed to generate report');
 
-        generateReport.mockRejectedValue();
-
-        return await expect(saveReport('https://www.save-report-test.co.uk', mockData.lhr)).rejects.toMatch('Failed to generate report');
-
-    });
+  // });
 
 });
