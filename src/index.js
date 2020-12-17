@@ -68,11 +68,18 @@ export const main = async () => {
   }
 }
 
-if (process.env.ENV !== 'test') {
+if (process.env.ENV !== 'test' && !process.env.STANDALONE) {
   app.listen(3000, async () => {
     console.log('Application listening on port 3000');
     await main();
   });
+}
+
+if (process.env.STANDALONE) {
+  (async () => {
+    await init()
+    await getDataForAllUrls()
+  })()
 }
 
 export { app }
