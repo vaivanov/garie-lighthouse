@@ -8,6 +8,7 @@ const chromeFlags = [
   '--no-zygote',
   '--no-sandbox',
   '--headless',
+  '--disable-dev-shm-usage',
 ];
 
 export const launchChromeAndRunLighthouse = async (url, config) => {
